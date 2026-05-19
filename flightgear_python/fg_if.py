@@ -486,6 +486,44 @@ class TelnetConnection(PropsConnectionBase):
         _ = self._send_cmd_get_resp(f'set {prop_str} {str(value)}')
         # We don't care about the response
 
+    def run_nasal(self, code: str, drain_timeout_s: float = 0.5) -> str:
+        """
+        Run a block of Nasal code in FlightGear and return whatever it prints.
+
+        FG needs to have been started with ``--allow-nasal-from-sockets``,
+        otherwise the command is silently dropped and you get back ``''``.
+        See https://wiki.flightgear.org/Telnet_usage for the protocol details.
+
+        :param code: Nasal source to evaluate
+        :param drain_timeout_s: How long to wait for output after sending the\
+            code. Bump this if your script is slow.
+        :return: Output from ``print()`` calls inside the code, stripped
+        """
+        payload = f'nasal\r\n{code}\r\n##EOF##\r\n'
+        try:
+            self.sock.sendall(payload.encode())
+        except BrokenPipeError as e:
+            raise FGCommunicationError('Failed to send data. Did you call .connect()?') from e
+
+        # Nasal mode doesn't print the `/> ` prompt when it's done, so we
+        # can't use _send_cmd_get_resp here. Just read until the socket
+        # goes quiet.
+        prev_timeout = self.sock.gettimeout()
+        self.sock.settimeout(drain_timeout_s)
+        resp_bytes = b''
+        try:
+            while True:
+                try:
+                    chunk = self.sock.recv(512)
+                    if not chunk:
+                        break
+                    resp_bytes += chunk
+                except socket.timeout:
+                    break
+        finally:
+            self.sock.settimeout(prev_timeout)
+        return resp_bytes.decode().strip()
+
     def get_values_and_dirs(self, path: str) -> Tuple[List[PropertyTreeValue], List[str]]:
         """
         Internal method to populate a shared property tree data structure

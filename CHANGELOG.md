@@ -1,3 +1,7 @@
+#### Unreleased
+
+- Add `TelnetConnection.run_nasal()` for evaluating Nasal code over the telnet interface
+
 #### [2.0.3](https://github.com/julianneswinoga/flightgear-python/compare/2.0.2...2.0.3)
 
 > 31 August 2025
