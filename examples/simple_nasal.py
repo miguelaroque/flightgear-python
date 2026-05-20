@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Simple Nasal example that reads the elapsed sim time and toggles pause.
+Simple Nasal example that reads the elapsed sim time and the current aircraft name.
 """
 
 from flightgear_python.fg_if import TelnetConnection
@@ -15,6 +15,6 @@ telnet_conn.connect()
 elapsed = telnet_conn.run_nasal('print(getprop("/sim/time/elapsed-sec"));')
 print(f'Elapsed: {elapsed}s')
 
-# fgcommand via Nasal, no output expected
-telnet_conn.run_nasal('fgcommand("pause");')
-print('Paused')
+# Any Nasal print() output is returned
+aircraft = telnet_conn.run_nasal('print(getprop("/sim/aircraft"));')
+print(f'Aircraft: {aircraft}')
