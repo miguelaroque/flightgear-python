@@ -1,5 +1,3 @@
-import socket
-
 import pytest
 
 from flightgear_python.fg_if import TelnetConnection
@@ -73,55 +71,28 @@ def test_telnet_run_nasal_sends_correct_payload(mocker):
         sent.append(data)
 
     def mock_recv(buflen):
-        raise socket.timeout()
+        return b'/> '
 
     mocker.patch('socket.socket.sendall', mock_sendall)
     mocker.patch('socket.socket.recv', side_effect=mock_recv)
-    mocker.patch('socket.socket.gettimeout', return_value=2.0)
-    mocker.patch('socket.socket.settimeout')
 
     t_con = TelnetConnection('localhost', 55554)
     code = 'print("hello");'
     t_con.run_nasal(code)
 
-    assert sent == [f'nasal\r\n{code}\r\n##EOF##\r\n'.encode()]
+    assert sent == [f'nasal\r\n{code}\r\n##EOF##\r\n\r\n'.encode()]
     t_con.sock.close()
 
 
 def test_telnet_run_nasal_returns_output(mocker):
-    chunks = [b'hello from FG\r\n']
+    chunks = [b'hello from FG\r\n/> ']
 
     def mock_recv(buflen):
-        if chunks:
-            return chunks.pop(0)
-        raise socket.timeout()
+        return chunks.pop(0) if chunks else b'/> '
 
     mocker.patch('socket.socket.sendall')
     mocker.patch('socket.socket.recv', side_effect=mock_recv)
-    mocker.patch('socket.socket.gettimeout', return_value=2.0)
-    mocker.patch('socket.socket.settimeout')
 
     t_con = TelnetConnection('localhost', 55554)
     assert t_con.run_nasal('print("hello from FG");') == 'hello from FG'
-    t_con.sock.close()
-
-
-def test_telnet_run_nasal_restores_socket_timeout(mocker):
-    timeouts = []
-
-    def mock_settimeout(self, t):
-        timeouts.append(t)
-
-    def mock_recv(buflen):
-        raise socket.timeout()
-
-    mocker.patch('socket.socket.sendall')
-    mocker.patch('socket.socket.recv', side_effect=mock_recv)
-    mocker.patch('socket.socket.gettimeout', return_value=2.0)
-    mocker.patch('socket.socket.settimeout', mock_settimeout)
-
-    t_con = TelnetConnection('localhost', 55554)
-    t_con.run_nasal('var x = 1;')
-
-    assert timeouts == [0.5, 2.0]
     t_con.sock.close()
